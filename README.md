@@ -1,6 +1,6 @@
 # Auto JumpBug Plugin
 
-A auto jumpbug plugin for sourcemod.
+An auto jumpbug plugin for sourcemod.
 
 This plugin tries to automate the execution of jumpbugs, currently it doesn't perform all jb's with 100% accuracy, this is a result of the way it was implemented, it doesn't change stamina or any similar value, it ray traces the ground to determine when to crouch and uncrouch.
 
