@@ -17,6 +17,6 @@ This project is a work in progress so it´s subject to changes.
 
 * Known bugs:
   
-  When hitting a jumpbug the walking sound is still played ( not going to fix )
+  When hitting a jumpbug the walking sound is still played ( probably cant be fixed )
   
-  When holding jumpbug bind and +duck, the plugin might not hit the the jb but no sound will be played ( not going to fix )
+  When holding jumpbug bind and +duck, the plugin might not hit the the jb but no sound hitting the groud is played ( probably cant be fixed )
