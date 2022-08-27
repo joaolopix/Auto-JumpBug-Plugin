@@ -21,65 +21,81 @@
 #pragma newdecls required
 
 // flags
-bool JB_bind_pressed = false; // is bind pressed or not
-bool tick_counter = false; // is tick counting running
-bool touched_ground = false;
-bool ducking = false;
-
+bool JB_bind_pressed[MAXPLAYERS + 1]; // is bind pressed or not
+bool tick_counter[MAXPLAYERS + 1]; // is tick counting running
+bool touched_ground[MAXPLAYERS + 1];
+bool ducking[MAXPLAYERS + 1];
 // prediction 
-float prev_origin_z = -9999.0; // previous z postion
-float vel_z = 0.0;
-float prev_vel_z = 0.0;
-int cont = 3; // counting how many ticks player will be crouched
-
+float prev_origin_z[MAXPLAYERS + 1]; // previous z postion
+float vel_z[MAXPLAYERS + 1];
+float prev_vel_z[MAXPLAYERS + 1];
+int cont[MAXPLAYERS + 1]; // couting how many ticks player will be crouched
 // hud
-int hit_color[4] =  { 255, 255, 255, 0 };
-Handle jb_hud = null;
+int hit_color[MAXPLAYERS + 1][4];
+Handle jb_hud[MAXPLAYERS + 1];
 
 public Plugin myinfo = {
 	name = "auto jumpbug",
 	author = "bolo",
 	description = "makes jumpbugs :)",
-	version = "2.0",
+	version = "1.0",
 	url = ""
 };
 
 public void OnPluginStart(){
 	
+	init_global_vars();
+	
 	RegConsoleCmd("+jumpbug", JumpBug_ON);
 	RegConsoleCmd("-jumpbug", JumpBug_OFF);
-	
-	jb_hud = CreateHudSynchronizer();
 }
 
-public Action JumpBug_ON(int client, int args){
-	JB_bind_pressed = true;
-	tick_counter = false;
-	touched_ground = false;
-	ducking = false;
-	prev_origin_z = -9999.0;
-	vel_z = 0.0;
-	prev_vel_z = 0.0;
-	cont = 3;
-	hit_color =  { 255, 255, 255, 0 };
+
+public void init_global_vars(){
+	
+	for (int i = 0; i < MAXPLAYERS+1; i++){	
+		// flags
+		JB_bind_pressed[i] = false;
+		tick_counter[i] = false;
+		touched_ground[i] = false;
+		ducking[i] = false;
+		// prediction 
+		prev_origin_z[i] = -9999.0;
+		vel_z[i] = 0.0;
+		prev_vel_z[i] = 0.0;
+		cont[i] = 3;
+		// hud
+		hit_color[i] = { 255, 255, 255, 0 };
+		jb_hud[i] = CreateHudSynchronizer();
+	}	
+}
+
+public Action JumpBug_ON(int client, int args){	
+	JB_bind_pressed[client] = true;
+	tick_counter[client] = false;
+	touched_ground[client] = false;
+	ducking[client] = false;
+	prev_origin_z[client] = -9999.0;
+	vel_z[client] = 0.0;
+	prev_vel_z[client] = 0.0;
+	cont[client] = 3;
+	hit_color[client] =  { 255, 255, 255, 0 };
 }
 
 public Action JumpBug_OFF(int client, int args){
-	JB_bind_pressed = false;
+	JB_bind_pressed[client] = false;
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3]){	
 	
 	if (IsPlayerAlive(client)){
-	
-		if(JB_bind_pressed){
+		if(JB_bind_pressed[client]){
 			JB_HUD(client,true);
 			Jumpbug(client, buttons);
 		}
 		else{
 			JB_HUD(client,false);
 		}
-		
 	}
 	return Plugin_Continue;
 }
@@ -90,82 +106,84 @@ public void Jumpbug(int client, int &buttons){
 	float origin[3]; // store origin position
 	Get_Origin_And_Ground(client,origin,pos); // trace rays to find closest ground height
 
-	vel_z = prev_origin_z - origin[2];
+	vel_z[client] = prev_origin_z[client] - origin[2];
 	
 	// if player is falling and is not on floor or ladder (falling can be misunderstood as walking down) and duck ticker is not running
-	if(prev_vel_z > 0 && !(GetEntityFlags(client) & FL_ONGROUND || GetEntityMoveType(client) & MOVETYPE_LADDER) && !tick_counter ){
+	if(prev_vel_z[client] > 0 && !(GetEntityFlags(client) & FL_ONGROUND || GetEntityMoveType(client) & MOVETYPE_LADDER) && !tick_counter[client] ){
 
-		int t = cont + 1;
-		ducking = false;
+		int t = cont[client] + 1;
+		ducking[client] = false;
+		
 		if(buttons & IN_DUCK){ // player is crouching
 			t = 1;
-			ducking = true;
+			ducking[client] = true;
 		}
-		float next_origin_z = origin[2] - vel_z * t + 0.5 * (prev_vel_z - vel_z) * t * t;
 		
-		if (next_origin_z <= pos[2] || (ducking && next_origin_z-pos[2] <= 9)){
-			tick_counter = true;
-			if(ducking){ 
-				cont = 0; // skip ducking ticks
+		float next_origin_z = origin[2] - vel_z[client] * t + 0.5 * (prev_vel_z[client] - vel_z[client]) * t * t;
+		
+		if (next_origin_z <= pos[2] || (ducking[client] && next_origin_z-pos[2] <= 9)){
+			tick_counter[client] = true;
+			if(ducking[client]){ 
+				cont[client] = 0; // skip ducking ticks
 			}
 		}
 	}
 	
 	// hold duck for x ticks
-	if(tick_counter && cont > 0){
+	if(tick_counter[client] && cont[client] > 0){
 		buttons |= IN_DUCK;
-		cont -= 1;
+		cont[client] -= 1;
 	}
 	
 	// cont finished reset values
-	if(cont <= 0){
+	if(cont[client] <= 0){
 		JumpBug_Detection(client, origin[2]);
 		
-		if(ducking){ // player was ducking lets unduck for x ticks
+		if(ducking[client]){ // player was ducked lets unduck for x ticks
 			buttons &= ~IN_DUCK;
 		}
 		
-		if(prev_origin_z - origin[2] < 0 || touched_ground){
-			cont -= 1;
+		if(prev_origin_z[client] - origin[2] < 0 || touched_ground[client]){
+			cont[client] -= 1;
 		}
 		// wait a few tick before restarting ( bad fix for double jb ) or hold unduck for x ticks before restarting
-		if(cont == -5){
-			tick_counter = false;
-			cont = 3;
-			touched_ground = false;
-			ducking = false;
+		if(cont[client] == -5){
+			tick_counter[client] = false;
+			cont[client] = 3;
+			touched_ground[client] = false;
+			ducking[client] = false;
 		}
 	}
 		
-	prev_origin_z = origin[2]; // update previous z
-	prev_vel_z = vel_z; // update previous velocity
+	prev_origin_z[client] = origin[2]; // update previous z
+	prev_vel_z[client] = vel_z[client];
 }
 
 public void JumpBug_Detection(int client,float z){
 	
 	// touched the ground
-	if(GetEntityFlags(client) & FL_ONGROUND || touched_ground){
-		touched_ground = true;
-		hit_color =  { 255, 255, 255, 0 };
+	if(GetEntityFlags(client) & FL_ONGROUND || touched_ground[client]){
+		touched_ground[client] = true;
+		hit_color[client] =  { 255, 255, 255, 0 };
 		JB_HUD(client,true);
 	}
 	
 	// going up and didnt touch the ground ( after uncrouch )
-	if(prev_origin_z - z < 0 && !touched_ground){
-		hit_color = { 0, 255, 0, 0 };
+	if(prev_origin_z[client] - z < 0 && !touched_ground[client]){
+		hit_color[client] = { 0, 255, 0, 0 };
 		JB_HUD(client,true);	
 	}
 }
 
 public void JB_HUD(int client, bool draw){
 	
-	SetHudTextParamsEx(-1.0, 0.6, 1.0, hit_color, _, 0, 1.0, 0.0, 0.0);
+	SetHudTextParamsEx(-1.0, 0.6, 1.0, hit_color[client], _, 0, 1.0, 0.0, 0.0);
 	
 	if(draw){
-		ShowSyncHudText(client, jb_hud, "%s", "JB");
+		ShowSyncHudText(client, jb_hud[client], "%s", "JB");
 	}
 	else{
-		ShowSyncHudText(client, jb_hud, "%s", "");
+		ShowSyncHudText(client, jb_hud[client], "%s", "");
 	}
 	
 }
@@ -220,4 +238,3 @@ public void Get_Origin_And_Ground(int client,float origin[3], float hit_pos[3]){
 	origin[2] += 2; // original z
 
 }
-
